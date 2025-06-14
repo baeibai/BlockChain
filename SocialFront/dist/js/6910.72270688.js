@@ -1,0 +1,2 @@
+"use strict";(self["webpackChunksocial_vue_3"]=self["webpackChunksocial_vue_3"]||[]).push([[6910],{6910:function(e,n,u){u.r(n),u.d(n,{default:function(){return l}});var r=u(641);const a={class:"row"};function c(e,n,u,c,s,t){return(0,r.uX)(),(0,r.CE)("div",a,n[0]||(n[0]=[(0,r.Lk)("div",{class:"col-lg-12"}," Here Add Your HTML Content..... ",-1)]))}var s={name:"BlankPage",mounted(){}},t=u(6262);const o=(0,t.A)(s,[["render",c]]);var l=o}}]);
+//# sourceMappingURL=6910.72270688.js.map

@@ -1,0 +1,2 @@
+"use strict";(self["webpackChunksocial_vue_3"]=self["webpackChunksocial_vue_3"]||[]).push([[2823],{2823:function(e,n,r){r.r(n),r.d(n,{default:function(){return i}});var u=r(641);const a={class:"wrapper"};function t(e,n,r,t,c,o){const s=(0,u.g2)("Loader"),l=(0,u.g2)("router-view");return(0,u.uX)(),(0,u.CE)(u.FK,null,[(0,u.bF)(s),(0,u.Lk)("div",a,[(0,u.bF)(l)])],64)}var c=r(9511),o={name:"Default",components:{Loader:c.A}},s=r(6262);const l=(0,s.A)(o,[["render",t]]);var i=l}}]);
+//# sourceMappingURL=2823.69636813.js.map

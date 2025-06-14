@@ -1,0 +1,6 @@
+# Spring Boot 应用程序的配置文件
+
+# 服务器端口配置
+spring:
+  profiles:
+    active: dev

@@ -1,0 +1,2 @@
+"use strict";(self["webpackChunksocial_vue_3"]=self["webpackChunksocial_vue_3"]||[]).push([[6060],{6060:function(u,e,n){n.r(e),n.d(e,{default:function(){return i}});var r=n(641);function c(u,e){return(0,r.uX)(),(0,r.CE)("div")}var t=n(6262);const a={},s=(0,t.A)(a,[["render",c]]);var i=s}}]);
+//# sourceMappingURL=6060.6110dc97.js.map

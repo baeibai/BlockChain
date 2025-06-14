@@ -1,0 +1,344 @@
+<template>
+    <div>
+        <h2>智能合約程式碼</h2>
+        <!-- 使用 v-html 渲染代碼文本 -->
+        <pre v-html="formattedCode"></pre>
+    </div>
+</template>
+
+<script>
+export default {
+    name: "SmartContractCode",
+    data() {
+        return {
+            code: `
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.8.0 <0.9.0;
+
+contract SocialMedia {
+    constructor() payable {
+        require(msg.value >= 1 ether, "Insufficient initial funding"); // 要求部署合約時至少傳入 1 ETH
+    }
+
+    uint256 constant registrationReward = 0.01 ether;
+    uint256 constant articleUploadReward = 0.0007 ether;
+    // uint256 constant verificationFee = 0.02 ether; // 定義驗證保證金
+    uint256 constant verificationReward = 0.0003 ether;
+    // uint256 constant verificationSuccessReward = 0.01 ether;
+    uint256 constant evidenceReward = 0.0015 ether;
+
+    // uint256 public totalRewardsGiven;
+    
+    struct User {
+        string name;
+        uint256 articleNum;
+        mapping(uint256 => uint256) articles;
+    }
+    mapping(address => User) public users;
+    uint256 public userCount;
+
+    struct Article {
+        string username;
+        string title;
+        string content;
+        address payable author;
+        uint256 timestamp;
+        uint256 commentsNum;
+        mapping(uint256 => Comment) comments;
+        bool isVerified;
+    }
+
+    uint256 public articleCount;
+    mapping(uint256 => Article) public articles;
+
+    struct Comment {
+        string content;
+        address author;
+        uint256 timestamp;
+    }
+
+    struct VerificationRequest {
+        address requester;
+        string reason;
+        uint64 supportVotes;
+        uint64 againstVotes;
+        uint256 timestamp ;
+        mapping(address => uint8) votes;
+        mapping(uint256 => Evidence) evidences;
+        uint256 evidenceCount;
+    }
+
+    mapping(uint256 => VerificationRequest) public verificationRequests;
+    mapping(uint256 => uint256) public verificationRequestCount;
+
+    mapping(uint256 => bytes32) public articleTransactionHashes;
+
+    struct Evidence {
+        string description;
+        address provider;
+        uint256 timestamp;
+        uint256 voteCount;
+    }
+
+    mapping(uint256 => mapping(uint256 => mapping(uint256 => Evidence))) public evidences;
+    mapping(uint256 => mapping(uint256 => uint256)) public evidenceCount;
+    
+    // 封裝檢查餘額並發送獎勵的函數
+    function rewardUser(address user, uint256 rewardAmount) internal {
+        // 檢查合約餘額是否足夠
+        require(address(this).balance >= rewardAmount, "Contract balance is too low");
+        // 發送獎勵
+        payable(user).transfer(rewardAmount);
+    }
+
+    function registerUser(string memory _name) public {
+        require(bytes(_name).length > 0, "Name cannot be empty");
+        require(bytes(users[msg.sender].name).length == 0, "User already registered");
+        User storage newUser = users[msg.sender];
+        newUser.articleNum = 0;
+        newUser.name = _name;
+        userCount++;
+        rewardUser(msg.sender, registrationReward);
+    }
+
+    event ArticlePublished(
+        uint256 indexed articleId
+    );
+
+    function publish(
+        string memory _title,
+        string memory _content,
+        uint256 _timestamp
+    ) public returns (uint256 articleId) {
+        require(bytes(_title).length > 0, "Title cannot be empty");
+        require(bytes(_content).length > 0, "Content cannot be empty");
+        require(bytes(users[msg.sender].name).length > 0, "User must be registered");
+
+        Article storage newArticle = articles[articleCount++];
+        newArticle.username = users[msg.sender].name;
+        newArticle.title = _title;
+        newArticle.content = _content;
+        newArticle.author = payable(msg.sender);
+        newArticle.timestamp = _timestamp;
+        newArticle.commentsNum = 0;
+        newArticle.isVerified = false;
+        // newArticle.verificationRequestCount = 0;
+
+        users[msg.sender].articles[users[msg.sender].articleNum++] = articleCount - 1;
+
+        // bytes32 txHash = keccak256(abi.encodePacked(msg.sender, _title, _content, _timestamp));
+        // articleTransactionHashes[articleCount - 1] = txHash;
+        rewardUser(msg.sender, articleUploadReward);
+        // 發出事件
+        emit ArticlePublished(articleCount - 1);
+        return articleCount - 1;
+    }
+
+    function setArticle(
+        uint256 _articleId,
+        string memory _title,
+        string memory _content
+    ) public {
+        require(msg.sender == articles[_articleId].author, "Only the author can update the article");
+        articles[_articleId].title = _title;
+        articles[_articleId].content = _content;
+    }
+
+    function getUserInfo(address _address)
+        public
+        view
+        returns (string memory username, uint256 articleNum)
+    {
+        User storage _user = users[_address];
+        return (_user.name, _user.articleNum);
+    }
+
+    function getArticle(uint256 _articleId)
+        public
+        view
+        returns (
+            string memory username,
+            string memory title,
+            string memory content,
+            address author,
+            uint256 timestamp,
+            uint256 commentsNum,
+            bool isVerified
+            // uint256 verificationRequestCount
+        )
+    {
+        Article storage _article = articles[_articleId];
+        return (
+            _article.username,
+            _article.title,
+            _article.content,
+            _article.author,
+            _article.timestamp,
+            _article.commentsNum,
+            _article.isVerified
+            // _article.verificationRequestCount
+        );
+    }
+
+    function getAllArticles() public view returns (uint256[] memory) {
+        uint256[] memory articleIds = new uint256[](articleCount);
+        for (uint256 i = 0; i < articleCount; i++) {
+            articleIds[i] = i;
+        }
+        return articleIds;
+    }
+
+    function getArticleSummary(uint256 _articleId)
+        public
+        view
+        returns (
+            string memory title,
+            address author,
+            uint256 timestamp
+        )
+    {
+        Article storage _article = articles[_articleId];
+        return (_article.title, _article.author, _article.timestamp);
+    }
+
+    function addComment(
+        uint256 _articleId,
+        string memory _content,
+        uint256 _timestamp
+    ) public {
+        require(bytes(_content).length > 0, "Comment content cannot be empty");
+        require(bytes(users[msg.sender].name).length > 0, "User must be registered");
+        require(_articleId < articleCount, "Article does not exist");
+
+        Article storage article = articles[_articleId];
+        uint256 commentId = article.commentsNum++;
+
+        article.comments[commentId] = Comment({
+            content: _content,
+            author: msg.sender,
+            timestamp: _timestamp
+        });
+    }
+
+    function getComment(uint256 _articleId, uint256 _commentId)
+        public
+        view
+        returns (
+            string memory content,
+            address author,
+            uint256 timestamp
+        )
+    {
+        require(_articleId < articleCount, "Article does not exist");
+        Article storage article = articles[_articleId];
+        Comment storage comment = article.comments[_commentId];
+        return (comment.content, comment.author, comment.timestamp);
+    }
+
+    uint256 public verificationCount;
+
+    event verificationed(uint256 indexed verificationId);
+
+    function requestVerification(uint256 _articleId, string memory _reason, uint256 _timestamp) public {
+        require(bytes(_reason).length > 0, "Reason cannot be empty");
+        require(_articleId < articleCount, "Article does not exist");
+        // require(msg.value == verificationFee, "Must submit 0.02 ETH as verification fee"); // 確認支付保證金
+
+        // Article storage article = articles[_articleId];
+        // uint256 requestId = article.verificationRequestCount++;
+
+        VerificationRequest storage request = verificationRequests[verificationCount++];
+        request.requester = msg.sender;
+        request.reason = _reason;
+        request.timestamp = _timestamp;
+        rewardUser(msg.sender, verificationReward);
+        emit verificationed(verificationCount-1);
+    }
+    
+
+    // 用戶進行投票，選擇支持或反對
+    function voteVerification(uint256 _verificationId, bool support) public {
+        require(_verificationId < verificationCount, "Verification request does not exist");
+
+        // 確保用戶沒有對該驗證請求投票過
+        require(verificationRequests[_verificationId].votes[msg.sender] == 0, "You have already voted");
+
+        VerificationRequest storage request = verificationRequests[_verificationId];
+
+        // 根據用戶選擇進行支持或反對票計數
+        if (support) {
+            request.supportVotes++;
+            request.votes[msg.sender] = 1; // 記錄支持
+        } else {
+            request.againstVotes++;
+            request.votes[msg.sender] = 2; // 記錄反對
+        }
+    
+
+        // 檢查是否支持票數超過一半用戶
+        // if (request.supportVotes > userCount / 2) {
+        //     // 如果支持票數超過一半，標記文章為已驗證
+        //     uint256 articleId = request.articleId;
+        //     articles[articleId].isVerified = true;
+
+        //     // 退還保證金
+        //     payable(request.requester).transfer(verificationFee);
+        // }
+    }
+
+    function getVote(uint256 _verificationId, address _voter) public view returns (uint8) {
+        return verificationRequests[_verificationId].votes[_voter];
+    }
+
+
+
+    function provideEvidence(
+        uint256 _verificationId,
+        string memory _description,
+        uint256 _timestamp
+    ) public {
+        require(bytes(_description).length > 0, "Description cannot be empty");
+        require(_verificationId < articleCount, "Article does not exist");
+        // require(_requestId < verificationRequests[_articleId].length, "Request does not exist");
+
+        VerificationRequest storage request = verificationRequests[_verificationId];
+        uint256 evidenceId = request.evidenceCount++;
+
+        request.evidences[evidenceId] = Evidence({
+            description: _description,
+            provider: msg.sender,
+            timestamp: _timestamp,
+            voteCount: 0
+        });
+        rewardUser(msg.sender, evidenceReward);
+    }
+}
+
+
+        `,
+        };
+    },
+    computed: {
+        formattedCode() {
+            // 將 < 和 > 進行轉義處理，防止它們被解析成標籤
+            return this.code
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+        },
+    },
+};
+</script>
+
+<style>
+pre {
+    background-color: #f4f4f4;
+    padding: 10px;
+    border-radius: 5px;
+    overflow-x: auto;
+}
+
+code {
+    font-family: monospace;
+    color: #333;
+}
+</style>
